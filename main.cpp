@@ -1,5 +1,7 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #define M_PI 3.14159265358979323846
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
 #include "tiny_obj_loader.h"
 #include "common/GLShader.h"
 #include <GL/glew.h> 
@@ -132,6 +134,13 @@ struct mat4
         return result;
     }
 };
+void printVertex(VertexTiny vert){
+        fprintf(stderr,"Vertice = x=%f  y=%f  z=%f\n",vert.position.x, vert.position.y, vert.position.z);
+    }
+
+void printVec3(vec3 vert){
+        fprintf(stderr,"Vertice = x=%f  y=%f  z=%f\n",vert.x, vert.y, vert.z);
+    }
 
 class Object
 {
@@ -140,6 +149,7 @@ class Object
         GLuint sizeVertices = 0;
         GLuint VAOObject = 0;
         GLuint VBOObject = 0;
+        GLuint texID = 0;
 
     public: 
         GLShader BasicShader;
@@ -172,13 +182,13 @@ class Object
                         attributes.vertices[i.vertex_index * 3 + 2]
                     };
                     if(i.normal_index >= 0)
-                        vec3 normal = {
+                        normal = {
                             attributes.normals[i.normal_index * 3],
                             attributes.normals[i.normal_index * 3 + 1],
                             attributes.normals[i.normal_index * 3 + 2]
                         };
                     if(i.texcoord_index >= 0)
-                        vec2 texCoord = {
+                        texCoord = {
                             attributes.texcoords[i.texcoord_index * 2],
                             attributes.texcoords[i.texcoord_index * 2 + 1],
                         };
@@ -190,13 +200,92 @@ class Object
             glBindVertexArray(VAOObject);
             glGenBuffers(1, &VBOObject);
             glBindBuffer(GL_ARRAY_BUFFER, VBOObject);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
-            glEnableVertexAttribArray(0);
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, nullptr);
-            glEnableVertexAttribArray(1);
-            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void *) (sizeof(float) * 3));
-            glEnableVertexAttribArray(2);
-            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void *) (sizeof(float) * 6));
+            glBufferData(GL_ARRAY_BUFFER, sizeof(VertexTiny) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
+            // glEnableVertexAttribArray(0);
+            // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, nullptr);
+            // glEnableVertexAttribArray(1);
+            // glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void *) (sizeof(float) * 3));
+            // glEnableVertexAttribArray(2);
+            // glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void *) (sizeof(float) * 6));
+            
+
+            auto basicProgram = BasicShader.GetProgram();
+            glUseProgram(basicProgram);
+
+            const int POSITION = glGetAttribLocation(basicProgram, "a_position");
+            if (POSITION < 0)
+                std::cout << "erreur de programme";
+            glEnableVertexAttribArray(POSITION);
+            glVertexAttribPointer(POSITION, 3, GL_FLOAT, GL_FALSE, sizeof(VertexTiny)/*stride*/, nullptr);
+
+            // const int color = glGetAttribLocation(basicProgram, "a_color");
+            // if (color < 0)
+            //     std::cout << "erreur de programme";
+            // glEnableVertexAttribArray(color);
+            // glVertexAttribPointer(color, 3, GL_FLOAT, GL_FALSE, sizeof(VertexTiny), (void*) offsetof(VertexTiny, color));
+
+            const int a_N = glGetAttribLocation(basicProgram, "a_N");
+            if (a_N < 0)
+                std::cout << "erreur de programme a_N" << std::endl;
+            glEnableVertexAttribArray(a_N);
+            glVertexAttribPointer(a_N, 3, GL_FLOAT, GL_FALSE, sizeof(VertexTiny), (void*) offsetof(VertexTiny, normal));
+
+            GLfloat L[3] = {1.0, 1.0, -1.0};
+            const int u_L = glGetUniformLocation(basicProgram, "u_L");
+            if (u_L < 0)
+                std::cout << "erreur de programme u_L" << std::endl;
+            glUniform3fv(u_L, 1, L);
+
+            GLfloat Id[3] = {0.8, 0.8, 0.8};
+            const int u_Id = glGetUniformLocation(basicProgram, "u_Id");
+            if (u_Id < 0)
+                std::cout << "erreur de programme u_Id" << std::endl;
+            glUniform3fv(u_Id, 1, Id);
+
+
+            const int coords = glGetAttribLocation(basicProgram, "a_texcoords");
+            if (coords < 0)
+                std::cout << "erreur de programme a_texcoords" << std::endl;
+            glEnableVertexAttribArray(coords);
+            glVertexAttribPointer(coords, 2, GL_FLOAT, GL_FALSE, sizeof(VertexTiny), (void*) offsetof(VertexTiny, texcoords));
+
+            GLfloat Is[3] = {1.0, 1.0, 1.0};
+            const int u_Is = glGetUniformLocation(basicProgram, "u_Is");
+            if (u_Is < 0)
+                std::cout << "erreur de programme u_Is" << std::endl;
+            glUniform3fv(u_Is, 1, Is);
+
+            GLfloat Ks[3] = {1.0, 0.0, 0.0};
+            const int u_Ks = glGetUniformLocation(basicProgram, "u_Ks");
+            if (u_Ks < 0)
+                std::cout << "erreur de programme u_Ks" << std::endl;
+            glUniform3fv(u_Ks, 1, Ks);
+
+            GLfloat shininess = 20.0;
+            const int u_shininess = glGetUniformLocation(basicProgram, "u_shininess");
+            if (u_shininess < 0)
+                std::cout << "erreur de programme u_shininess" << std::endl;
+            glUniform1f(u_shininess, shininess);
+            glBindVertexArray(0);
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+            auto locationTexture = glGetUniformLocation(basicProgram, "u_sampler");
+            glUniform1i(locationTexture, 1);
+
+            glGenTextures(1, &texID);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, texID);
+
+            int w, h;
+            uint8_t *data = stbi_load("map_03.png", &w, &h, nullptr, STBI_rgb_alpha);
+            if (data) {
+                std::cout << "charge .png for texture" << std::endl;
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+                glGenerateMipmap(GL_TEXTURE_2D);
+                stbi_image_free(data);
+            }
+            
             sizeVertices = size*3;
         }
 
@@ -255,6 +344,7 @@ struct Application
     GLuint IBO;
     GLuint VAO;
     Object suzanne;
+    Object suzanneTest;
     bool Initialise()
     {
         static const Vertex triangle[] = {
@@ -268,7 +358,8 @@ struct Application
             0, 1, 3,
             1, 2, 3
         };
-        suzanne = Object("./objects/suzanne.obj","suzanne.vs","suzanne.fs");
+        suzanneTest = Object("./objects/suzanne.obj","suzanneTest.vs","suzanneTest.fs");
+        suzanne = Object("./objects/suzanne.obj","suzanneTest.vs","suzanneTest.fs");
 
         g_BasicShader.LoadVertexShader("Basic.vs");
         g_BasicShader.LoadFragmentShader("Basic.fs");
@@ -325,7 +416,6 @@ struct Application
         glUseProgram(basicProgram2);
         //Rotation
         mat4 matrix_rotation;
-        Rotate_mx(&matrix_rotation,1.0f);
         Identity_m(&matrix_rotation);
         int timeLocation = glGetUniformLocation(basicProgram2, "m_rotation"); 
         glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_rotation);
@@ -357,6 +447,43 @@ struct Application
         glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_view);
         
         suzanne.Render();
+
+        basicProgram2 = suzanneTest.BasicShader.GetProgram();
+        glUseProgram(basicProgram2);
+        //Rotation
+        matrix_rotation;
+        Rotate_mx(&matrix_rotation,1.0f);
+        Identity_m(&matrix_rotation);
+        timeLocation = glGetUniformLocation(basicProgram2, "m_rotation"); 
+        glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_rotation);
+
+        matrix_translation;
+        Trans_m(&matrix_translation,1,1,-5.0f);
+        timeLocation = glGetUniformLocation(basicProgram2, "m_translation"); 
+        glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_translation);
+        //Scaling
+        scale = 1.0f;
+        matrix_scale = {vec4{scale, 0.0f, 0.0f,0.0f},vec4{0.0f,scale,0.0f,0.0f},vec4{0.0f,0.0f,scale,0.0f},vec4{0.0f,0.0f,0.0f,1.0f}};
+        timeLocation = glGetUniformLocation(basicProgram2, "m_scale"); 
+        glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_scale);
+
+        //mat4 matrix_projection = {vec4{1.0f/WINDOWS_WIDTH, 0.0f, 0.0f,0.0f},vec4{0.0f,1.0f/WINDOWS_HEIGHT,0.0f,0.0f},vec4{0.0f,0.0f,1.0f,0.0f},vec4{0.0f,0.0f,0.0f,1.0f}};
+        matrix_projection;
+        //Ortho_m(&matrix_projection, -WINDOWS_WIDTH, WINDOWS_WIDTH, -WINDOWS_HEIGHT, WINDOWS_HEIGHT, 0.0f, 100.0f);
+        Projo3D_m(&matrix_projection, 3.14f/4.0f,((float)WINDOWS_WIDTH/(float)WINDOWS_HEIGHT),0.1f,1000.0f);
+        timeLocation = glGetUniformLocation(basicProgram2, "m_proj"); 
+        glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_projection);
+
+        matrix_world = CreateWorldMAtrix(matrix_translation,matrix_rotation,matrix_scale);
+        timeLocation = glGetUniformLocation(basicProgram2, "m_worldMatrix"); 
+        glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_world);
+
+        
+        matrix_view = camera.LookAt();
+        timeLocation = glGetUniformLocation(basicProgram2, "m_viewMatrix"); 
+        glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_view);
+        
+        suzanneTest.Render();
 
         /*
         auto basicProgram = g_BasicShader.GetProgram();
@@ -435,11 +562,11 @@ struct Application
         return m_trans*m_roation*m_scale;
     }
 
-    void printVertex(VertexTiny vert){
-        fprintf(stderr,"Vertice = x=%f  y=%f  z=%f\n",vert.position.x, vert.position.y, vert.position.z);
-    }
+    
 
 };
+
+
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     if (firstMouse) {

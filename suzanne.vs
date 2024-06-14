@@ -10,6 +10,6 @@ uniform mat4 m_worldMatrix;
 uniform mat4 m_viewMatrix;
 void main(void) {
     gl_Position = m_proj * m_viewMatrix * m_worldMatrix * vec4(a_position, 1.0);
-    v_color = vec4(1.0);
+    v_color = vec4(0.149,0.141,0.912,1.0);
 }
 
