@@ -7,6 +7,7 @@ varying vec3 v_N;
 varying vec2 v_texcoords_d;
 uniform sampler2D u_sampler;
 
+uniform vec3 E;
 
 uniform float u_shininess;
 uniform vec3 u_Is;
@@ -42,7 +43,6 @@ vec3 specular(vec3 N, vec3 I, vec3 P, vec3 E, vec3 K)
 void main(void) {
     vec4 texcolor_d = texture2D(u_sampler, v_texcoords_d);
     vec3 diff = diffuse(v_N, -u_L, texcolor_d.xyz);
-    vec3 E = vec3(0, 0, 5);
     vec3 spec = specular(v_N, u_L, v_position, E, texcolor_d.xyz);
     gl_FragColor = v_color * vec4(diff, 1.0) + vec4(spec, 1.0);
 }

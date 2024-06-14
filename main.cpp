@@ -416,7 +416,7 @@ struct Application
         glUseProgram(basicProgram2);
         //Rotation
         mat4 matrix_rotation;
-        Identity_m(&matrix_rotation);
+        Rotate_mx(&matrix_rotation,sin(currentTime));
         int timeLocation = glGetUniformLocation(basicProgram2, "m_rotation"); 
         glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_rotation);
 
@@ -445,6 +445,12 @@ struct Application
         mat4 matrix_view = camera.LookAt();
         timeLocation = glGetUniformLocation(basicProgram2, "m_viewMatrix"); 
         glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_view);
+        
+        GLfloat E[3] = {camera.c_position.x, camera.c_position.y, camera.c_position.z};
+        int coordCam = glGetUniformLocation(basicProgram2, "E");
+        if (coordCam < 0)
+            std::cout << "erreur de programme E" << std::endl;
+        glUniform3fv(coordCam, 1, E);
         
         suzanne.Render();
 
@@ -483,6 +489,10 @@ struct Application
         timeLocation = glGetUniformLocation(basicProgram2, "m_viewMatrix"); 
         glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_view);
         
+        coordCam = glGetUniformLocation(basicProgram2, "E");
+        if (coordCam < 0)
+            std::cout << "erreur de programme E" << std::endl;
+        glUniform3fv(coordCam, 1, E);
         suzanneTest.Render();
 
         /*
