@@ -1,3 +1,5 @@
+#version 150
+
 attribute vec3 a_position;
 attribute vec3 a_color;
 attribute vec2 a_texcoords;
@@ -17,7 +19,7 @@ uniform mat4 m_viewMatrix;
 
 void main(void) {
     gl_Position = m_proj * m_viewMatrix * m_worldMatrix * vec4(a_position, 1.0);
-    v_N = a_N;
+    v_N = (transpose(inverse(m_worldMatrix)) * vec4(a_N, 0.0)).xyz;
     v_texcoords_d = a_texcoords;
     v_color = vec4(1.0);
     v_position = a_position;

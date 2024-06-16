@@ -231,6 +231,7 @@ class Object
             glVertexAttribPointer(a_N, 3, GL_FLOAT, GL_FALSE, sizeof(VertexTiny), (void*) offsetof(VertexTiny, normal));
 
             GLfloat L[3] = {1.0, 1.0, -1.0};
+//            GLfloat L[3] = {0.0, -1.0, 0.0};
             const int u_L = glGetUniformLocation(basicProgram, "u_L");
             if (u_L < 0)
                 std::cout << "erreur de programme u_L" << std::endl;
