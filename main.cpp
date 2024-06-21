@@ -150,6 +150,7 @@ class Object
         GLuint VAOObject = 0;
         GLuint VBOObject = 0;
         GLuint texID = 0;
+        const char* texPath;
 
     public:
         GLShader BasicShader;
@@ -165,6 +166,7 @@ class Object
             std::vector<tinyobj::material_t> materials;
             std::string warnings;
             std::string errors;
+            texPath = texturePath;
 
             tinyobj::LoadObj(&attributes, &shapes, &materials, &warnings, &errors, path.c_str());
             std::vector<VertexTiny> vertices;
@@ -264,21 +266,6 @@ class Object
             glBindVertexArray(0);
             glBindBuffer(GL_ARRAY_BUFFER, 0);
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-            auto locationTexture = glGetUniformLocation(basicProgram, "u_sampler");
-            glUniform1i(locationTexture, 1);
-
-            glGenTextures(1, &texID);
-            glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_2D, texID);
-
-            int w, h;
-            uint8_t *data = stbi_load(texturePath, &w, &h, nullptr, STBI_rgb_alpha);
-            if (data) {
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-                glGenerateMipmap(GL_TEXTURE_2D);
-                stbi_image_free(data);
-            }
             
             sizeVertices = size*3;
         }
@@ -290,7 +277,27 @@ class Object
         void Render()
         {
             glEnable(GL_CULL_FACE);
+
+            auto basicProgram = BasicShader.GetProgram();
+
+            
+            auto locationTexture = glGetUniformLocation(basicProgram, "u_sampler");
+            glUniform1i(locationTexture, 1);
+
+            glGenTextures(1, &texID);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, texID);
+
+            int w, h;
+            uint8_t *data = stbi_load(texPath, &w, &h, nullptr, STBI_rgb_alpha);
+            if (data) {
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+                glGenerateMipmap(GL_TEXTURE_2D);
+                stbi_image_free(data);
+            }
+
             glBindVertexArray(VAOObject);
+
 	        glDrawArrays(GL_TRIANGLES, 0, sizeVertices);
         } 
     
@@ -338,56 +345,11 @@ struct Application
     GLuint IBO;
     GLuint VAO;
     Object suzanne;
-    Object suzanneTest;
+    Object cube;
     bool Initialise()
     {
-        static const Vertex triangle[] = {
-            {{0.5f, 0.5f},{1.0f, 0.0f, 0.0f}},
-            {{0.5f, -0.5f},{0.0f, 1.0f, 0.0f}},
-            {{-0.5f, -0.5f},{0.0f, 0.0f, 1.0f}},
-            {{-0.5f, 0.5f},{1.0f, 0.0f, 1.0f}}
-        };
-
-        unsigned int indices[]{
-            0, 1, 3,
-            1, 2, 3
-        };
-        suzanne = Object("./objects/suzanne.obj","suzanneTest.vs","suzanneTest.fs","map_03.png");
-        suzanneTest = Object("./objects/cube.obj","suzanneTest.vs","suzanneTest.fs","texture/goldTexture.jpeg");
-
-        g_BasicShader.LoadVertexShader("Basic.vs");
-        g_BasicShader.LoadFragmentShader("Basic.fs");
-        g_BasicShader.Create();
-        auto basicProgram = g_BasicShader.GetProgram();
-        glUseProgram(basicProgram);
-        
-        
-        glGenVertexArrays(1, &VAO);
-        glBindVertexArray(VAO);
-
-        glGenBuffers(1, &VBO);
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex)*4, triangle, GL_STATIC_DRAW);
-
-
-        int loc_position = glGetAttribLocation(basicProgram, "a_position");
-        glEnableVertexAttribArray(loc_position);
-        glVertexAttribPointer(loc_position, 2, GL_FLOAT, false, sizeof(Vertex), 0);
-
-        loc_position = glGetAttribLocation(basicProgram, "a_color");
-        glEnableVertexAttribArray(loc_position);
-        glVertexAttribPointer(loc_position, 3, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, color));
-
-        glGenBuffers(1, &IBO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int)*6, indices, GL_STATIC_DRAW);
-
-        glBindVertexArray(0);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-        
-        
+        suzanne = Object("./objects/suzanne.obj","Basic.vs","Basic.fs","texture/goldTexture.jpeg");
+        cube = Object("./objects/cube.obj","Basic.vs","Basic.fs","texture/map_03.png");
         return true;
     }
 
@@ -447,7 +409,7 @@ struct Application
 
 
 
-        auto basicProgram2 = suzanneTest.BasicShader.GetProgram();
+        auto basicProgram2 = cube.BasicShader.GetProgram();
         glUseProgram(basicProgram2);
         //Rotation
         matrix_rotation;
@@ -481,40 +443,7 @@ struct Application
         if (coordCam < 0)
             std::cout << "erreur de programme E" << std::endl;
         glUniform3fv(coordCam, 1, E);
-        suzanneTest.Render();
-
-        /*
-        auto basicProgram = g_BasicShader.GetProgram();
-        glUseProgram(basicProgram);        
-
-        //Rotation
-        matrix_rotation = {vec4{1.0f * sin(currentTime), 0.0f, 0.0f,0.0f},vec4{0.0f,1.0f,0.0f,0.0f},vec4{0.0f,0.0f,1.0f,0.0f},vec4{1.0f,0.0f,-5.0f,1.0f}};
-        timeLocation = glGetUniformLocation(basicProgram, "m_rotation"); 
-        glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_rotation);
-
-        //Scaling
-        float scale2 = 1.0f;
-        matrix_scale = {vec4{scale2, 0.0f, 0.0f,0.0f},vec4{0.0f,scale2,0.0f,0.0f},vec4{0.0f,0.0f,scale2,0.0f},vec4{0.0f,0.0f,0.0f,1.0f}};
-        timeLocation = glGetUniformLocation(basicProgram, "m_scale"); 
-        glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_scale);
-
-        //mat4 matrix_projection = {vec4{1.0f/WINDOWS_WIDTH, 0.0f, 0.0f,0.0f},vec4{0.0f,1.0f/WINDOWS_HEIGHT,0.0f,0.0f},vec4{0.0f,0.0f,1.0f,0.0f},vec4{0.0f,0.0f,0.0f,1.0f}};
-        matrix_projection;
-        //Ortho_m(&matrix_projection, -WINDOWS_WIDTH, WINDOWS_WIDTH, -WINDOWS_HEIGHT, WINDOWS_HEIGHT, 0.0f, 100.0f);
-        Projo3D_m(&matrix_projection, 3.14f/4.0f,((float)WINDOWS_WIDTH/(float)WINDOWS_HEIGHT),0.1f,1000.0f);
-        timeLocation = glGetUniformLocation(basicProgram, "m_proj"); 
-        glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_projection);
-        
-        
-        //Face Culling
-        glEnable(GL_CULL_FACE);
-        glCullFace(GL_FRONT);
-
-        
-        glBindVertexArray(VAO);        
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT,0);
-        */
-        
+        cube.Render();    
         
     }
 
