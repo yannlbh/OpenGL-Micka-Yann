@@ -151,10 +151,10 @@ class Object
         GLuint VBOObject = 0;
         GLuint texID = 0;
 
-    public: 
+    public:
         GLShader BasicShader;
         tinyobj::material_t material;
-        Object(const std::string& path, const char* VertexShader, const char* FragmentShader)
+        Object(const std::string& path, const char* VertexShader, const char* FragmentShader, const char* texturePath)
         {
             BasicShader.LoadVertexShader(VertexShader);
             BasicShader.LoadFragmentShader(FragmentShader);
@@ -201,12 +201,6 @@ class Object
             glGenBuffers(1, &VBOObject);
             glBindBuffer(GL_ARRAY_BUFFER, VBOObject);
             glBufferData(GL_ARRAY_BUFFER, sizeof(VertexTiny) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
-            // glEnableVertexAttribArray(0);
-            // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, nullptr);
-            // glEnableVertexAttribArray(1);
-            // glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void *) (sizeof(float) * 3));
-            // glEnableVertexAttribArray(2);
-            // glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void *) (sizeof(float) * 6));
             
 
             auto basicProgram = BasicShader.GetProgram();
@@ -279,9 +273,8 @@ class Object
             glBindTexture(GL_TEXTURE_2D, texID);
 
             int w, h;
-            uint8_t *data = stbi_load("map_03.png", &w, &h, nullptr, STBI_rgb_alpha);
+            uint8_t *data = stbi_load(texturePath, &w, &h, nullptr, STBI_rgb_alpha);
             if (data) {
-                std::cout << "charge .png for texture" << std::endl;
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
                 glGenerateMipmap(GL_TEXTURE_2D);
                 stbi_image_free(data);
@@ -359,8 +352,8 @@ struct Application
             0, 1, 3,
             1, 2, 3
         };
-        suzanneTest = Object("./objects/suzanne.obj","suzanneTest.vs","suzanneTest.fs");
-        suzanne = Object("./objects/suzanne.obj","suzanneTest.vs","suzanneTest.fs");
+        suzanne = Object("./objects/suzanne.obj","suzanneTest.vs","suzanneTest.fs","map_03.png");
+        suzanneTest = Object("./objects/cube.obj","suzanneTest.vs","suzanneTest.fs","texture/goldTexture.jpeg");
 
         g_BasicShader.LoadVertexShader("Basic.vs");
         g_BasicShader.LoadFragmentShader("Basic.fs");
@@ -413,66 +406,60 @@ struct Application
         
         float currentTime = (float)glfwGetTime();
 
-        auto basicProgram2 = suzanne.BasicShader.GetProgram();
-        glUseProgram(basicProgram2);
+        auto basicProgram = suzanne.BasicShader.GetProgram();
+        glUseProgram(basicProgram);
         //Rotation
         mat4 matrix_rotation;
         Rotate_mx(&matrix_rotation,sin(currentTime));
-        int timeLocation = glGetUniformLocation(basicProgram2, "m_rotation"); 
-        glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_rotation);
+        Identity_m(&matrix_rotation);
 
         mat4 matrix_translation;
-        Trans_m(&matrix_translation,0,0,-5.0f);
-        timeLocation = glGetUniformLocation(basicProgram2, "m_translation"); 
-        glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_translation);
+        Trans_m(&matrix_translation,-2.0f,0,-5.0f);
         //Scaling
-        float scale = 1.0f;
-        mat4 matrix_scale = {vec4{scale, 0.0f, 0.0f,0.0f},vec4{0.0f,scale,0.0f,0.0f},vec4{0.0f,0.0f,scale,0.0f},vec4{0.0f,0.0f,0.0f,1.0f}};
-        timeLocation = glGetUniformLocation(basicProgram2, "m_scale"); 
-        glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_scale);
-
+        float scale = 1.0f*sin(currentTime);
+        mat4 matrix_scale;
+        if(scale < 0) scale = -scale;
+        Scale_m(&matrix_scale,scale,scale,1.0f);
         //mat4 matrix_projection = {vec4{1.0f/WINDOWS_WIDTH, 0.0f, 0.0f,0.0f},vec4{0.0f,1.0f/WINDOWS_HEIGHT,0.0f,0.0f},vec4{0.0f,0.0f,1.0f,0.0f},vec4{0.0f,0.0f,0.0f,1.0f}};
         mat4 matrix_projection;
         //Ortho_m(&matrix_projection, -WINDOWS_WIDTH, WINDOWS_WIDTH, -WINDOWS_HEIGHT, WINDOWS_HEIGHT, 0.0f, 100.0f);
         Projo3D_m(&matrix_projection, 3.14f/4.0f,((float)WINDOWS_WIDTH/(float)WINDOWS_HEIGHT),0.1f,1000.0f);
-        timeLocation = glGetUniformLocation(basicProgram2, "m_proj"); 
+        int timeLocation = glGetUniformLocation(basicProgram, "m_proj"); 
         glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_projection);
 
         mat4 matrix_world = CreateWorldMAtrix(matrix_translation,matrix_rotation,matrix_scale);
-        timeLocation = glGetUniformLocation(basicProgram2, "m_worldMatrix"); 
+        timeLocation = glGetUniformLocation(basicProgram, "m_worldMatrix"); 
         glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_world);
 
         
         mat4 matrix_view = camera.LookAt();
-        timeLocation = glGetUniformLocation(basicProgram2, "m_viewMatrix"); 
+        timeLocation = glGetUniformLocation(basicProgram, "m_viewMatrix"); 
         glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_view);
         
         GLfloat E[3] = {camera.c_position.x, camera.c_position.y, camera.c_position.z};
-        int coordCam = glGetUniformLocation(basicProgram2, "E");
+        int coordCam = glGetUniformLocation(basicProgram, "E");
         if (coordCam < 0)
             std::cout << "erreur de programme E" << std::endl;
         glUniform3fv(coordCam, 1, E);
         
         suzanne.Render();
 
-        basicProgram2 = suzanneTest.BasicShader.GetProgram();
+
+
+
+        auto basicProgram2 = suzanneTest.BasicShader.GetProgram();
         glUseProgram(basicProgram2);
         //Rotation
         matrix_rotation;
-        Rotate_mx(&matrix_rotation,1.0f);
-        Identity_m(&matrix_rotation);
-        timeLocation = glGetUniformLocation(basicProgram2, "m_rotation"); 
-        glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_rotation);
+        Rotate_my(&matrix_rotation,3.14f+sin(currentTime));
+        //Identity_m(&matrix_rotation);
 
         matrix_translation;
         Trans_m(&matrix_translation,1,1,-5.0f);
-        timeLocation = glGetUniformLocation(basicProgram2, "m_translation"); 
-        glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_translation);
         //Scaling
         scale = 1.0f;
-        matrix_scale = {vec4{scale, 0.0f, 0.0f,0.0f},vec4{0.0f,scale,0.0f,0.0f},vec4{0.0f,0.0f,scale,0.0f},vec4{0.0f,0.0f,0.0f,1.0f}};
-        timeLocation = glGetUniformLocation(basicProgram2, "m_scale"); 
-        glUniformMatrix4fv(timeLocation,1,GL_FALSE,(float*)&matrix_scale);
+        matrix_scale;
+        Scale_m(&matrix_scale,scale,scale,1.0f);  
 
         //mat4 matrix_projection = {vec4{1.0f/WINDOWS_WIDTH, 0.0f, 0.0f,0.0f},vec4{0.0f,1.0f/WINDOWS_HEIGHT,0.0f,0.0f},vec4{0.0f,0.0f,1.0f,0.0f},vec4{0.0f,0.0f,0.0f,1.0f}};
         matrix_projection;

@@ -10,10 +10,8 @@ varying vec4 v_color;
 varying vec2 v_texcoords_d;
 varying vec3 v_N;
 
-uniform mat4 m_rotation;
-uniform mat4 m_scale;
+
 uniform mat4 m_proj;
-uniform mat4 m_translation;
 uniform mat4 m_worldMatrix;
 uniform mat4 m_viewMatrix;
 
